@@ -9,3 +9,4 @@ omp-server.pdb
 /filterscripts
 /gamemodes/main.amx
 /scriptfiles/
+*.xml
