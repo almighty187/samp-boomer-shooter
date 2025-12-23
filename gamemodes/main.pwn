@@ -1,17 +1,23 @@
 /* Libraries */
 #include <open.mp>
+#include <Pawn.CMD>
+#include <sscanf2>
+#include <a_mysql>
+#include <samp_bcrypt>
 
 /* Modules */
-#include "utilities.pwn"
-#include "anticheat.pwn"
-#include "damage.pwn"
-#include "spawn.pwn"
-#include "player.pwn"
-#include "powerups.pwn"
+#include "modules/utilities.pwn"
+#include "modules/anticheat.pwn"
+#include "modules/damage.pwn"
+#include "modules/spawn.pwn"
+#include "modules/player.pwn"
+#include "modules/powerups.pwn"
+#include "modules/admin.pwn"
+#include "modules/database.pwn"
 
 /* Server Versioning */
 #define SERVER_VERSION_MAJOR 1
-#define SERVER_VERSION_MINOR 0
+#define SERVER_VERSION_MINOR 1
 #define SERVER_VERSION_PATCH 0
 
 SetRandomPassword()

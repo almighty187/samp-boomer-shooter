@@ -11,7 +11,7 @@ bool:DoesPlayerHaveWeapon(playerid, t_WEAPON:weaponid)
 }
 
 
-OnPlayerWeaponChange(playerid, t_WEAPON:newWeapon, t_WEAPON:oldWeapon)
+OnPlayerWeaponChange(playerid, t_WEAPON:newWeapon)
 {
 	if (!DoesPlayerHaveWeapon(playerid, newWeapon))
 	{
@@ -39,7 +39,7 @@ hook OnPlayerUpdate(playerid)
 
 	if (currentWeapon != g_PlayerCurrentWeapon[playerid])
 	{
-		OnPlayerWeaponChange(playerid, currentWeapon, g_PlayerCurrentWeapon[playerid]);
+		OnPlayerWeaponChange(playerid, currentWeapon);
 	}
 
 	return 1;

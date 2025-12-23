@@ -14,6 +14,16 @@ AddPlayerScore(playerid, score = 1)
 	SetPlayerScore(playerid, PlayerData[playerid][E_PLAYER_SCORE]);
 }
 
+GetPlayerCash(playerid)
+{
+	return PlayerData[playerid][E_PLAYER_CASH];
+}
+
+GetPlayerServerScore(playerid)
+{
+	return PlayerData[playerid][E_PLAYER_SCORE];
+}
+
 SetPlayerCash(playerid, amount)
 {
 	PlayerData[playerid][E_PLAYER_CASH] = amount;

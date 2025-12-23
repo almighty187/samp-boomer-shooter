@@ -10,11 +10,6 @@ static Float:g_PlayerSpawnPoints[][4] =
 	{-1375.2388, 81.4462, 1030.8574, 43.0889} // se
 };
 
-forward LoginSpawnPlayer(playerid);
-public LoginSpawnPlayer(playerid)
-{
-	TogglePlayerSpectating(playerid, false);
-}
 
 /*
 GiveRandomWeapon(playerid)
@@ -67,9 +62,6 @@ hook OnPlayerDeath(playerid)
 
 hook OnPlayerConnect(playerid)
 {
-	TogglePlayerSpectating(playerid, true);
 	SetSpawnInfo(playerid, 1, 285, 0.0, 0.0, 0.0, 0.0, WEAPON_FIST, 0, WEAPON_FIST, 0, WEAPON_FIST, 0);
-
-	SetTimerEx("LoginSpawnPlayer", 100, false, "i", playerid);
 	return 1;
 }

@@ -1,0 +1,386 @@
+#include <YSI_Coding\y_hooks>
+
+static enum E_ADMIN_DATA
+{
+	E_ADMIN_LEVEL
+}
+
+static AdminData[MAX_PLAYERS][E_ADMIN_DATA];
+
+#define ADMIN_LEVEL_NONE 0
+#define ADMIN_LEVEL_MODERATOR 1
+#define ADMIN_LEVEL_ADMIN 2
+#define ADMIN_LEVEL_SENIOR 3
+#define ADMIN_LEVEL_OWNER 4
+
+bool:IsPlayerAdminLevel(playerid, level = ADMIN_LEVEL_MODERATOR)
+{
+	return (AdminData[playerid][E_ADMIN_LEVEL] >= level);
+}
+
+GetPlayerAdminLevel(playerid)
+{
+	return AdminData[playerid][E_ADMIN_LEVEL];
+}
+
+SetPlayerAdminLevel(playerid, level)
+{
+	new oldLevel = AdminData[playerid][E_ADMIN_LEVEL];
+	AdminData[playerid][E_ADMIN_LEVEL] = level;
+
+	if (level > ADMIN_LEVEL_NONE && oldLevel == ADMIN_LEVEL_NONE)
+	{
+		new playerName[MAX_PLAYER_NAME], levelName[32], message[144];
+		GetPlayerName(playerid, playerName, sizeof playerName);
+		GetAdminLevelName(level, levelName);
+
+		format(message, sizeof message, "> %s has logged in as a Level %d Admin (%s)", playerName, level, levelName);
+		SendMessageToAdmins(0xFFFF00FF, message, ADMIN_LEVEL_MODERATOR);
+	}
+}
+
+GetAdminLevelName(level, destination[], size = sizeof destination)
+{
+	switch(level)
+	{
+		case ADMIN_LEVEL_MODERATOR: format(destination, size, "Moderator");
+		case ADMIN_LEVEL_ADMIN: format(destination, size, "Administrator");
+		case ADMIN_LEVEL_SENIOR: format(destination, size, "Senior Admin");
+		case ADMIN_LEVEL_OWNER: format(destination, size, "Owner");
+		default: format(destination, size, "None");
+	}
+}
+
+SendMessageToAdmins(color, const message[], minLevel = ADMIN_LEVEL_MODERATOR)
+{
+	for (new i = 0; i < MAX_PLAYERS; i++)
+	{
+		if (IsPlayerConnected(i) && IsPlayerAdminLevel(i, minLevel))
+		{
+			SendClientMessage(i, color, message);
+		}
+	}
+}
+
+hook OnPlayerConnect(playerid)
+{
+	AdminData[playerid][E_ADMIN_LEVEL] = ADMIN_LEVEL_NONE;
+}
+
+CMD:heal(playerid, params[])
+{
+	if (!IsPlayerAdminLevel(playerid, ADMIN_LEVEL_MODERATOR))
+		return SendClientMessage(playerid, 0xAFAFAFFF, "You don't have permission to use this command.");
+
+	new targetid;
+	if (sscanf(params, "u", targetid))
+		return SendClientMessage(playerid, 0xAFAFAFFF, "Usage: /heal [playerid]");
+
+	if (!IsPlayerConnected(targetid))
+		return SendClientMessage(playerid, 0xAFAFAFFF, "Invalid player ID.");
+
+	ServerSetHealth(targetid, MAX_HEALTH);
+
+	new adminName[MAX_PLAYER_NAME], targetName[MAX_PLAYER_NAME], message[144];
+	GetPlayerName(playerid, adminName, sizeof adminName);
+	GetPlayerName(targetid, targetName, sizeof targetName);
+
+	format(message, sizeof message, "Admin %s has healed %s", adminName, targetName);
+	SendClientMessageToAll(0xFF6347FF, message);
+
+	return 1;
+}
+
+CMD:goto(playerid, params[])
+{
+	if (!IsPlayerAdminLevel(playerid, ADMIN_LEVEL_MODERATOR))
+		return SendClientMessage(playerid, 0xAFAFAFFF, "You don't have permission to use this command.");
+
+	new targetid;
+	if (sscanf(params, "u", targetid))
+		return SendClientMessage(playerid, 0xAFAFAFFF, "Usage: /goto [playerid]");
+
+	if (!IsPlayerConnected(targetid))
+		return SendClientMessage(playerid, 0xAFAFAFFF, "Invalid player ID.");
+
+	if (targetid == playerid)
+		return SendClientMessage(playerid, 0xAFAFAFFF, "You can't teleport to yourself.");
+
+	new Float:x, Float:y, Float:z, interior;
+	GetPlayerPos(targetid, x, y, z);
+	interior = GetPlayerInterior(targetid);
+
+	SetPlayerPos(playerid, x + 1.0, y + 1.0, z);
+	SetPlayerInterior(playerid, interior);
+
+	new targetName[MAX_PLAYER_NAME], message[128];
+	GetPlayerName(targetid, targetName, sizeof targetName);
+	format(message, sizeof message, "Teleported to %s", targetName);
+	SendClientMessage(playerid, 0xFFFFFFFF, message);
+
+	return 1;
+}
+
+CMD:gethere(playerid, params[])
+{
+	if (!IsPlayerAdminLevel(playerid, ADMIN_LEVEL_MODERATOR))
+		return SendClientMessage(playerid, 0xAFAFAFFF, "You don't have permission to use this command.");
+
+	new targetid;
+	if (sscanf(params, "u", targetid))
+		return SendClientMessage(playerid, 0xAFAFAFFF, "Usage: /gethere [playerid]");
+
+	if (!IsPlayerConnected(targetid))
+		return SendClientMessage(playerid, 0xAFAFAFFF, "Invalid player ID.");
+
+	if (targetid == playerid)
+		return SendClientMessage(playerid, 0xAFAFAFFF, "You can't teleport yourself to yourself.");
+
+	new Float:x, Float:y, Float:z, interior;
+	GetPlayerPos(playerid, x, y, z);
+	interior = GetPlayerInterior(playerid);
+
+	SetPlayerPos(targetid, x + 1.0, y + 1.0, z);
+	SetPlayerInterior(targetid, interior);
+
+	new targetName[MAX_PLAYER_NAME], message[128];
+	GetPlayerName(targetid, targetName, sizeof targetName);
+	format(message, sizeof message, "Brought %s to your location", targetName);
+	SendClientMessage(playerid, 0xFFFFFFFF, message);
+
+	return 1;
+}
+
+CMD:kick(playerid, params[])
+{
+	if (!IsPlayerAdminLevel(playerid, ADMIN_LEVEL_ADMIN))
+		return SendClientMessage(playerid, 0xAFAFAFFF, "You don't have permission to use this command.");
+
+	new targetid, reason[64];
+	if (sscanf(params, "us[64]", targetid, reason))
+		return SendClientMessage(playerid, 0xAFAFAFFF, "Usage: /kick [playerid] [reason]");
+
+	if (!IsPlayerConnected(targetid))
+		return SendClientMessage(playerid, 0xAFAFAFFF, "Invalid player ID.");
+
+	if (GetPlayerAdminLevel(targetid) >= GetPlayerAdminLevel(playerid))
+		return SendClientMessage(playerid, 0xAFAFAFFF, "You can't kick an admin of equal or higher level.");
+
+	new adminName[MAX_PLAYER_NAME], targetName[MAX_PLAYER_NAME], message[256];
+	GetPlayerName(playerid, adminName, sizeof adminName);
+	GetPlayerName(targetid, targetName, sizeof targetName);
+
+	format(message, sizeof message, "%s has been kicked by %s. Reason: %s", targetName, adminName, reason);
+	SendClientMessageToAll(0xFF6347FF, message);
+
+	SetTimerEx("DelayedKick", 500, false, "i", targetid);
+	return 1;
+}
+
+forward DelayedKick(playerid);
+public DelayedKick(playerid)
+{
+	Kick(playerid);
+}
+
+CMD:freeze(playerid, params[])
+{
+	if (!IsPlayerAdminLevel(playerid, ADMIN_LEVEL_ADMIN))
+		return SendClientMessage(playerid, 0xAFAFAFFF, "You don't have permission to use this command.");
+
+	new targetid;
+	if (sscanf(params, "u", targetid))
+		return SendClientMessage(playerid, 0xAFAFAFFF, "Usage: /freeze [playerid]");
+
+	if (!IsPlayerConnected(targetid))
+		return SendClientMessage(playerid, 0xAFAFAFFF, "Invalid player ID.");
+
+	TogglePlayerControllable(targetid, false);
+
+	new adminName[MAX_PLAYER_NAME], targetName[MAX_PLAYER_NAME], message[128];
+	GetPlayerName(playerid, adminName, sizeof adminName);
+	GetPlayerName(targetid, targetName, sizeof targetName);
+
+	format(message, sizeof message, "Admin %s has frozen %s", adminName, targetName);
+	SendClientMessageToAll(0xFF6347FF, message);
+
+	return 1;
+}
+
+CMD:unfreeze(playerid, params[])
+{
+	if (!IsPlayerAdminLevel(playerid, ADMIN_LEVEL_ADMIN))
+		return SendClientMessage(playerid, 0xAFAFAFFF, "You don't have permission to use this command.");
+
+	new targetid;
+	if (sscanf(params, "u", targetid))
+		return SendClientMessage(playerid, 0xAFAFAFFF, "Usage: /unfreeze [playerid]");
+
+	if (!IsPlayerConnected(targetid))
+		return SendClientMessage(playerid, 0xAFAFAFFF, "Invalid player ID.");
+
+	TogglePlayerControllable(targetid, true);
+
+	new adminName[MAX_PLAYER_NAME], targetName[MAX_PLAYER_NAME], message[128];
+	GetPlayerName(playerid, adminName, sizeof adminName);
+	GetPlayerName(targetid, targetName, sizeof targetName);
+
+	format(message, sizeof message, "Admin %s has unfrozen %s", adminName, targetName);
+	SendClientMessageToAll(0xFF6347FF, message);
+
+	return 1;
+}
+
+CMD:slap(playerid, params[])
+{
+	if (!IsPlayerAdminLevel(playerid, ADMIN_LEVEL_ADMIN))
+		return SendClientMessage(playerid, 0xAFAFAFFF, "You don't have permission to use this command.");
+
+	new targetid, Float:slapPower = 5.0;
+	if (sscanf(params, "uF(5.0)", targetid, slapPower))
+		return SendClientMessage(playerid, 0xAFAFAFFF, "Usage: /slap [playerid] [power (default 5.0)]");
+
+	if (!IsPlayerConnected(targetid))
+		return SendClientMessage(playerid, 0xAFAFAFFF, "Invalid player ID.");
+
+	new Float:x, Float:y, Float:z;
+	GetPlayerPos(targetid, x, y, z);
+	SetPlayerPos(targetid, x, y, z + slapPower);
+
+	new adminName[MAX_PLAYER_NAME], targetName[MAX_PLAYER_NAME], message[128];
+	GetPlayerName(playerid, adminName, sizeof adminName);
+	GetPlayerName(targetid, targetName, sizeof targetName);
+
+	format(message, sizeof message, "Admin %s has slapped %s", adminName, targetName);
+	SendClientMessageToAll(0xFF6347FF, message);
+
+	return 1;
+}
+
+CMD:ban(playerid, params[])
+{
+	if (!IsPlayerAdminLevel(playerid, ADMIN_LEVEL_SENIOR))
+		return SendClientMessage(playerid, 0xAFAFAFFF, "You don't have permission to use this command.");
+
+	new targetid, reason[64];
+	if (sscanf(params, "us[64]", targetid, reason))
+		return SendClientMessage(playerid, 0xAFAFAFFF, "Usage: /ban [playerid] [reason]");
+
+	if (!IsPlayerConnected(targetid))
+		return SendClientMessage(playerid, 0xAFAFAFFF, "Invalid player ID.");
+
+	if (GetPlayerAdminLevel(targetid) >= GetPlayerAdminLevel(playerid))
+		return SendClientMessage(playerid, 0xAFAFAFFF, "You can't ban an admin of equal or higher level.");
+
+	new adminName[MAX_PLAYER_NAME], targetName[MAX_PLAYER_NAME], message[256];
+	GetPlayerName(playerid, adminName, sizeof adminName);
+	GetPlayerName(targetid, targetName, sizeof targetName);
+
+	format(message, sizeof message, "%s has been banned by %s. Reason: %s", targetName, adminName, reason);
+	SendClientMessageToAll(0xFF6347FF, message);
+
+	Ban(targetid);
+	return 1;
+}
+
+CMD:kill(playerid, params[])
+{
+	if (!IsPlayerAdminLevel(playerid, ADMIN_LEVEL_SENIOR))
+		return SendClientMessage(playerid, 0xAFAFAFFF, "You don't have permission to use this command.");
+
+	new targetid;
+	if (sscanf(params, "u", targetid))
+		return SendClientMessage(playerid, 0xAFAFAFFF, "Usage: /kill [playerid]");
+
+	if (!IsPlayerConnected(targetid))
+		return SendClientMessage(playerid, 0xAFAFAFFF, "Invalid player ID.");
+
+	ServerSetHealth(targetid, 0.0);
+
+	new adminName[MAX_PLAYER_NAME], targetName[MAX_PLAYER_NAME], message[128];
+	GetPlayerName(playerid, adminName, sizeof adminName);
+	GetPlayerName(targetid, targetName, sizeof targetName);
+
+	format(message, sizeof message, "Admin %s has force-killed %s", adminName, targetName);
+	SendClientMessageToAll(0xFF6347FF, message);
+
+	return 1;
+}
+
+CMD:gotoco(playerid, params[])
+{
+	if (!IsPlayerAdminLevel(playerid, ADMIN_LEVEL_SENIOR))
+		return SendClientMessage(playerid, 0xAFAFAFFF, "You don't have permission to use this command.");
+
+	new Float:pos[3], interior, virtualworld;
+	if (sscanf(params, "p<,>fffD(0)D(0)", pos[0], pos[1], pos[2], interior, virtualworld))
+		return SendClientMessage(playerid, 0xAFAFAFFF, "Usage: /gotoco [x,y,z,interior,virtualworld]");
+
+	SetPlayerPos(playerid, pos[0], pos[1], pos[2]);
+	SetPlayerInterior(playerid, interior);
+	SetPlayerVirtualWorld(playerid, virtualworld);
+
+	new message[128];
+	format(message, sizeof message, "Teleported to coordinates: %.2f, %.2f, %.2f (Interior: %d, VW: %d)", pos[0], pos[1], pos[2], interior, virtualworld);
+	SendClientMessage(playerid, 0xFFFFFFFF, message);
+
+	return 1;
+}
+
+CMD:setadmin(playerid, params[])
+{
+	if (!IsPlayerAdminLevel(playerid, ADMIN_LEVEL_OWNER))
+		return SendClientMessage(playerid, 0xAFAFAFFF, "You don't have permission to use this command.");
+
+	new targetid, level;
+	if (sscanf(params, "ui", targetid, level))
+		return SendClientMessage(playerid, 0xAFAFAFFF, "Usage: /setadmin [playerid] [level 0-4]");
+
+	if (!IsPlayerConnected(targetid))
+		return SendClientMessage(playerid, 0xAFAFAFFF, "Invalid player ID.");
+
+	if (level < ADMIN_LEVEL_NONE || level > ADMIN_LEVEL_OWNER)
+		return SendClientMessage(playerid, 0xAFAFAFFF, "Admin level must be between 0 and 4.");
+
+	SetPlayerAdminLevel(targetid, level);
+
+	new adminName[MAX_PLAYER_NAME], targetName[MAX_PLAYER_NAME], levelName[32], message[144];
+	GetPlayerName(playerid, adminName, sizeof adminName);
+	GetPlayerName(targetid, targetName, sizeof targetName);
+	GetAdminLevelName(level, levelName);
+
+	format(message, sizeof message, "%s has set %s's admin level to %d (%s)", adminName, targetName, level, levelName);
+	SendClientMessageToAll(0xFF6347FF, message);
+
+	return 1;
+}
+
+CMD:adminlevel(playerid, params[])
+{
+	new level = GetPlayerAdminLevel(playerid),
+		levelName[32],
+		message[128];
+
+	GetAdminLevelName(level, levelName);
+	format(message, sizeof message, "Your admin level: %d (%s)", level, levelName);
+	SendClientMessage(playerid, 0xAFAFAFFF, message);
+
+	return 1;
+}
+
+CMD:a(playerid, params[])
+{
+	if (!IsPlayerAdminLevel(playerid, ADMIN_LEVEL_MODERATOR))
+		return SendClientMessage(playerid, 0xAFAFAFFF, "You don't have permission to use this command.");
+
+	if (isnull(params))
+		return SendClientMessage(playerid, 0xAFAFAFFF, "Usage: /a [message]");
+
+	new playerName[MAX_PLAYER_NAME], message[256];
+	GetPlayerName(playerid, playerName, sizeof playerName);
+
+	format(message, sizeof message, "[Adm Chat] %s: %s", playerName, params);
+	SendMessageToAdmins(0xFF6347FF, message, ADMIN_LEVEL_MODERATOR);
+
+	return 1;
+}
