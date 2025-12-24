@@ -1,32 +1,30 @@
 #include <YSI_Coding\y_hooks>
 
-static enum E_ADMIN_DATA
+enum E_ADMIN_LEVEL
 {
-	E_ADMIN_LEVEL
+	ADMIN_LEVEL_NONE,
+	ADMIN_LEVEL_MODERATOR,
+	ADMIN_LEVEL_ADMIN,
+	ADMIN_LEVEL_SENIOR,
+	ADMIN_LEVEL_OWNER
 }
 
-static AdminData[MAX_PLAYERS][E_ADMIN_DATA];
+static E_ADMIN_LEVEL:AdminLevel[MAX_PLAYERS];
 
-#define ADMIN_LEVEL_NONE 0
-#define ADMIN_LEVEL_MODERATOR 1
-#define ADMIN_LEVEL_ADMIN 2
-#define ADMIN_LEVEL_SENIOR 3
-#define ADMIN_LEVEL_OWNER 4
-
-bool:IsPlayerAdminLevel(playerid, level = ADMIN_LEVEL_MODERATOR)
+bool:IsPlayerAdminLevel(playerid, E_ADMIN_LEVEL:level = ADMIN_LEVEL_MODERATOR)
 {
-	return (AdminData[playerid][E_ADMIN_LEVEL] >= level);
+	return (AdminLevel[playerid] >= level);
 }
 
-GetPlayerAdminLevel(playerid)
+E_ADMIN_LEVEL:GetPlayerAdminLevel(playerid)
 {
-	return AdminData[playerid][E_ADMIN_LEVEL];
+	return AdminLevel[playerid];
 }
 
-SetPlayerAdminLevel(playerid, level)
+SetPlayerAdminLevel(playerid, E_ADMIN_LEVEL:level)
 {
-	new oldLevel = AdminData[playerid][E_ADMIN_LEVEL];
-	AdminData[playerid][E_ADMIN_LEVEL] = level;
+	new E_ADMIN_LEVEL:oldLevel = AdminLevel[playerid];
+	AdminLevel[playerid] = level;
 
 	if (level > ADMIN_LEVEL_NONE && oldLevel == ADMIN_LEVEL_NONE)
 	{
@@ -34,12 +32,12 @@ SetPlayerAdminLevel(playerid, level)
 		GetPlayerName(playerid, playerName, sizeof playerName);
 		GetAdminLevelName(level, levelName);
 
-		format(message, sizeof message, "> %s has logged in as a Level %d Admin (%s)", playerName, level, levelName);
+		format(message, sizeof message, "> %s has logged in as a Level %d Admin (%s)", playerName, _:level, levelName);
 		SendMessageToAdmins(0xFFFF00FF, message, ADMIN_LEVEL_MODERATOR);
 	}
 }
 
-GetAdminLevelName(level, destination[], size = sizeof destination)
+GetAdminLevelName(E_ADMIN_LEVEL:level, destination[], size = sizeof destination)
 {
 	switch(level)
 	{
@@ -51,7 +49,7 @@ GetAdminLevelName(level, destination[], size = sizeof destination)
 	}
 }
 
-SendMessageToAdmins(color, const message[], minLevel = ADMIN_LEVEL_MODERATOR)
+SendMessageToAdmins(color, const message[], E_ADMIN_LEVEL:minLevel = ADMIN_LEVEL_MODERATOR)
 {
 	for (new i = 0; i < MAX_PLAYERS; i++)
 	{
@@ -64,7 +62,7 @@ SendMessageToAdmins(color, const message[], minLevel = ADMIN_LEVEL_MODERATOR)
 
 hook OnPlayerConnect(playerid)
 {
-	AdminData[playerid][E_ADMIN_LEVEL] = ADMIN_LEVEL_NONE;
+	AdminLevel[playerid] = ADMIN_LEVEL_NONE;
 }
 
 CMD:heal(playerid, params[])
@@ -332,16 +330,17 @@ CMD:setadmin(playerid, params[])
 	if (!IsPlayerAdminLevel(playerid, ADMIN_LEVEL_OWNER))
 		return SendClientMessage(playerid, 0xAFAFAFFF, "You don't have permission to use this command.");
 
-	new targetid, level;
-	if (sscanf(params, "ui", targetid, level))
+	new targetid, levelInput;
+	if (sscanf(params, "ui", targetid, levelInput))
 		return SendClientMessage(playerid, 0xAFAFAFFF, "Usage: /setadmin [playerid] [level 0-4]");
 
 	if (!IsPlayerConnected(targetid))
 		return SendClientMessage(playerid, 0xAFAFAFFF, "Invalid player ID.");
 
-	if (level < ADMIN_LEVEL_NONE || level > ADMIN_LEVEL_OWNER)
+	if (levelInput < _:ADMIN_LEVEL_NONE || levelInput > _:ADMIN_LEVEL_OWNER)
 		return SendClientMessage(playerid, 0xAFAFAFFF, "Admin level must be between 0 and 4.");
 
+	new E_ADMIN_LEVEL:level = E_ADMIN_LEVEL:levelInput;
 	SetPlayerAdminLevel(targetid, level);
 
 	new adminName[MAX_PLAYER_NAME], targetName[MAX_PLAYER_NAME], levelName[32], message[144];
@@ -349,7 +348,7 @@ CMD:setadmin(playerid, params[])
 	GetPlayerName(targetid, targetName, sizeof targetName);
 	GetAdminLevelName(level, levelName);
 
-	format(message, sizeof message, "%s has set %s's admin level to %d (%s)", adminName, targetName, level, levelName);
+	format(message, sizeof message, "%s has set %s's admin level to %d (%s)", adminName, targetName, _:level, levelName);
 	SendClientMessageToAll(0xFF6347FF, message);
 
 	return 1;

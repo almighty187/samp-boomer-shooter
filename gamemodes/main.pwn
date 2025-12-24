@@ -19,7 +19,7 @@
 /* Server Versioning */
 #define SERVER_VERSION_MAJOR 1
 #define SERVER_VERSION_MINOR 2
-#define SERVER_VERSION_PATCH 0
+#define SERVER_VERSION_PATCH 1
 
 SetRandomPassword()
 {

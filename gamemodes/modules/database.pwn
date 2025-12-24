@@ -15,90 +15,17 @@ static PlayerDatabase[MAX_PLAYERS][E_PLAYER_DATABASE];
 static PlayerWeapons[MAX_PLAYERS][13][2];
 static PlayerInputPassword[MAX_PLAYERS][65];
 
-static g_MySQLHost[64];
-static g_MySQLUser[64];
-static g_MySQLPass[64];
-static g_MySQLDB[64];
-static g_MySQLPort;
-
-LoadMySQLConfig()
-{
-	new File:file = fopen("mysql.ini", io_read);
-
-	if (!file)
-	{
-		file = fopen("../mysql.ini", io_read);
-
-		if (!file)
-		{
-			printf("[MySQL] Failed to load mysql.ini, using defaults");
-			printf("[MySQL] Host: %s, User: %s, DB: %s, Port: %d", g_MySQLHost, g_MySQLUser, g_MySQLDB, g_MySQLPort);
-			return 0;
-		}
-	}
-
-	new line[128], key[32], value[96];
-
-	while (fread(file, line))
-	{
-		if (line[0] == '\0' || line[0] == '#' || line[0] == ';')
-			continue;
-
-		new pos = strfind(line, "=");
-		if (pos == -1)
-			continue;
-
-		strmid(key, line, 0, pos);
-		strmid(value, line, pos + 1, strlen(line));
-
-		for (new i = 0; i < strlen(key); i++)
-		{
-			if (key[i] == ' ' || key[i] == '\t')
-			{
-				strdel(key, i, i + 1);
-				i--;
-			}
-		}
-
-		for (new i = 0; i < strlen(value); i++)
-		{
-			if (value[i] == ' ' || value[i] == '\t' || value[i] == '\r' || value[i] == '\n')
-			{
-				strdel(value, i, i + 1);
-				i--;
-			}
-		}
-
-		if (!strcmp(key, "host", true))
-			format(g_MySQLHost, sizeof g_MySQLHost, "%s", value);
-		else if (!strcmp(key, "user", true))
-			format(g_MySQLUser, sizeof g_MySQLUser, "%s", value);
-		else if (!strcmp(key, "password", true))
-			format(g_MySQLPass, sizeof g_MySQLPass, "%s", value);
-		else if (!strcmp(key, "database", true))
-			format(g_MySQLDB, sizeof g_MySQLDB, "%s", value);
-		else if (!strcmp(key, "port", true))
-			g_MySQLPort = strval(value);
-	}
-
-	fclose(file);
-	printf("[MySQL] Configuration loaded from mysql.ini");
-	return 1;
-}
-
 ConnectDatabase()
 {
-	LoadMySQLConfig();
-
-	g_SQL = mysql_connect(g_MySQLHost, g_MySQLUser, g_MySQLPass, g_MySQLDB);
+	g_SQL = mysql_connect_file("mysql.ini");
 
 	if (g_SQL == MYSQL_INVALID_HANDLE || mysql_errno(g_SQL) != 0)
 	{
-		printf("[MySQL] Connection failed!");
+		printf("[MySQL] Connection failed! Make sure mysql.ini exists and is configured correctly.");
 		return 0;
 	}
 
-	printf("[MySQL] Connected to database '%s' at %s:%d", g_MySQLDB, g_MySQLHost, g_MySQLPort);
+	printf("[MySQL] Connected successfully using mysql.ini");
 	CreateTables();
 	return 1;
 }
@@ -287,11 +214,11 @@ public OnPlayerDataLoaded(playerid)
 	cache_get_value_name_int(0, "id", PlayerDatabase[playerid][E_PLAYER_DB_ID]);
 	PlayerDatabase[playerid][E_PLAYER_LOGGED_IN] = true;
 
-	new adminLevel, cash, score, highestKillstreak;
+	new E_ADMIN_LEVEL:adminLevel, cash, score, highestKillstreak;
 	new Float:health, Float:x, Float:y, Float:z;
 	new interior, virtualworld;
 
-	cache_get_value_name_int(0, "admin_level", adminLevel);
+	cache_get_value_name_int(0, "admin_level", _:adminLevel);
 	cache_get_value_name_int(0, "cash", cash);
 	cache_get_value_name_int(0, "score", score);
 	cache_get_value_name_int(0, "highest_killstreak", highestKillstreak);
@@ -415,7 +342,7 @@ SavePlayerAccount(playerid)
 		`virtualworld` = %d, \
 		`weapons` = '%e' \
 		WHERE `id` = %d",
-		GetPlayerAdminLevel(playerid),
+		_:GetPlayerAdminLevel(playerid),
 		GetPlayerCash(playerid),
 		GetPlayerServerScore(playerid),
 		GetPlayerHighestKillStreak(playerid),
