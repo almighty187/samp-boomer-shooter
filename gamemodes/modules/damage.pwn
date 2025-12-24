@@ -6,6 +6,8 @@
 #define BODY_PART_HEAD 9
 
 new static Float:g_PlayerHealth[MAX_PLAYERS] = {150.0, ...};
+new static g_PlayerKillStreak[MAX_PLAYERS];
+new static g_PlayerHighestKillStreak[MAX_PLAYERS];
 new static Float:g_WeaponDamages[] = 
 {
 	0.0, // Fist
@@ -57,6 +59,57 @@ new static Float:g_WeaponDamages[] =
 	0.0, // Para
 };
 
+CheckKillStreak(playerid)
+{
+	new streak = g_PlayerKillStreak[playerid];
+	new playerName[MAX_PLAYER_NAME], message[128];
+	GetPlayerName(playerid, playerName, sizeof playerName);
+
+	switch(streak)
+	{
+		case 3:
+		{
+			format(message, sizeof message, "%s is on a Killing Spree! (%d kills)", playerName, streak);
+			SendClientMessageToAll(0xFFFF00FF, message);
+		}
+		case 5:
+		{
+			format(message, sizeof message, "%s is on a Rampage! (%d kills)", playerName, streak);
+			SendClientMessageToAll(0xFFAA00FF, message);
+		}
+		case 7:
+		{
+			format(message, sizeof message, "%s is Dominating! (%d kills)", playerName, streak);
+			SendClientMessageToAll(0xFF8800FF, message);
+		}
+		case 10:
+		{
+			format(message, sizeof message, "%s is Unstoppable! (%d kills)", playerName, streak);
+			SendClientMessageToAll(0xFF5500FF, message);
+		}
+		case 15:
+		{
+			format(message, sizeof message, "%s is GODLIKE! (%d kills)", playerName, streak);
+			SendClientMessageToAll(0xFF0000FF, message);
+		}
+		case 20:
+		{
+			format(message, sizeof message, "%s is BEYOND GODLIKE! (%d kills)", playerName, streak);
+			SendClientMessageToAll(0xFF0000FF, message);
+		}
+	}
+}
+
+GetPlayerHighestKillStreak(playerid)
+{
+	return g_PlayerHighestKillStreak[playerid];
+}
+
+SetPlayerHighestKillStreak(playerid, streak)
+{
+	g_PlayerHighestKillStreak[playerid] = streak;
+}
+
 PlayerKilledPlayer(playerid, killer, t_WEAPON:weaponid)
 {
 	new deathString[144],
@@ -71,10 +124,21 @@ PlayerKilledPlayer(playerid, killer, t_WEAPON:weaponid)
 	format(deathString, sizeof deathString, "%s has been killed by %s with a %s", playerName, killerName, weaponName);
 	SendClientMessageToAll(0xFF0000FF, deathString);
 
+	g_PlayerKillStreak[playerid] = 0;
+
 	AddPlayerScore(playerid, -1);
 
 	AddPlayerScore(killer, 1);
 	GivePlayerCash(killer, 100);
+
+	g_PlayerKillStreak[killer]++;
+
+	if (g_PlayerKillStreak[killer] > g_PlayerHighestKillStreak[killer])
+	{
+		g_PlayerHighestKillStreak[killer] = g_PlayerKillStreak[killer];
+	}
+
+	CheckKillStreak(killer);
 }
 
 ServerSetHealth(playerid, Float:health)
@@ -145,6 +209,8 @@ Float:AdjustDamageByBodypart(Float:amount, bodypart)
 hook OnPlayerConnect(playerid)
 {
 	ServerSetHealth(playerid, 150.0);
+	g_PlayerKillStreak[playerid] = 0;
+	g_PlayerHighestKillStreak[playerid] = 0;
 }
 
 hook OnPlayerGiveDamage(playerid, damagedid, Float:amount, t_WEAPON:weaponid, bodypart)

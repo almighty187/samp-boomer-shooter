@@ -33,6 +33,15 @@ GivePlayerServerWeapon(playerid, t_WEAPON:weaponid, ammo)
 	GivePlayerWeapon(playerid, weaponid, ammo);
 }
 
+ResetPlayerServerWeapons(playerid)
+{
+	for (new i = 0; i < 13; i++)
+	{
+		g_PlayerWeaponInventory[playerid][i] = WEAPON_FIST;
+	}
+	g_PlayerCurrentWeapon[playerid] = WEAPON_FIST;
+}
+
 hook OnPlayerUpdate(playerid)
 {
 	new t_WEAPON:currentWeapon = GetPlayerWeapon(playerid);

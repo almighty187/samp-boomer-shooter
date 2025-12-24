@@ -34,6 +34,7 @@ static enum E_POWERUP_DATA
 static g_Powerups[MAX_POWERUPS][E_POWERUP_DATA];
 
 forward RespawnPowerup(powerup);
+
 public RespawnPowerup(powerup)
 {
 	KillTimer(g_Powerups[powerup][E_POWERUP_RESPAWN_TIMER]);
@@ -111,22 +112,27 @@ OnPickupPowerup(playerid, powerup)
 		case E_POWERUP_SMALL_HP:
 		{
 			ServerGiveHealth(playerid, 10);
+			SendClientMessage(playerid, COLOR_GREY, "You have picked up +10 health.");
 		}
 		case E_POWERUP_SHOTGUN:
 		{
 			GivePlayerServerWeapon(playerid, WEAPON_SHOTGUN, 9999);
+			SendClientMessage(playerid, COLOR_GREY, "You have picked up a Shotgun.");
 		}
 		case E_POWERUP_MP5:
 		{
 			GivePlayerServerWeapon(playerid, WEAPON_MP5, 9999);
+			SendClientMessage(playerid, COLOR_GREY, "You have picked up a MP5.");
 		}
 		case E_POWERUP_AK:
 		{
 			GivePlayerServerWeapon(playerid, WEAPON_AK47, 9999);
+			SendClientMessage(playerid, COLOR_GREY, "You have picked up a AK-47.");
 		}
 		case E_POWERUP_M4:
 		{
 			GivePlayerServerWeapon(playerid, WEAPON_M4, 9999);
+			SendClientMessage(playerid, COLOR_GREY, "You have picked up a M4.");
 		}
 	}
 

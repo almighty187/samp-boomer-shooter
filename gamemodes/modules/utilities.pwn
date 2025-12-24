@@ -1,3 +1,6 @@
+#define COLOR_GREY 0xAFAFAFAA
+#define COLOR_LIGHTRED 0xFF6347AA
+
 CreateRandomString(destination[], length = sizeof destination)
 {
 	new bool:useCaps = false;

@@ -52,3 +52,24 @@ hook OnPlayerConnect(playerid)
 {
 	ResetPlayerData(playerid);
 }
+
+CMD:myhighscores(playerid, params[])
+{
+	new score = GetPlayerServerScore(playerid);
+	new cash = GetPlayerCash(playerid);
+	new killstreak = GetPlayerHighestKillStreak(playerid);
+
+	new info[256];
+	format(info, sizeof info, "{FFFFFF}Score: {00FF00}%d\n{FFFFFF}Cash: {00FF00}$%d\n{FFFFFF}Highest Killstreak: {00FF00}%d", score, cash, killstreak);
+
+	new title[] = "My High Scores";
+	new button[] = "Close";
+
+	Dialog_Show(playerid, MyHighScores, DIALOG_STYLE_MSGBOX, title, info, button, "");
+	return 1;
+}
+
+Dialog:MyHighScores(playerid, response, listitem, inputtext[])
+{
+	return 1;
+}

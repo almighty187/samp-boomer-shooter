@@ -4,6 +4,7 @@
 #include <sscanf2>
 #include <a_mysql>
 #include <samp_bcrypt>
+#include <easyDialog>
 
 /* Modules */
 #include "modules/utilities.pwn"
@@ -17,7 +18,7 @@
 
 /* Server Versioning */
 #define SERVER_VERSION_MAJOR 1
-#define SERVER_VERSION_MINOR 1
+#define SERVER_VERSION_MINOR 2
 #define SERVER_VERSION_PATCH 0
 
 SetRandomPassword()

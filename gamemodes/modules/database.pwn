@@ -112,6 +112,7 @@ CreateTables()
 		`admin_level` INT DEFAULT 0,\
 		`cash` INT DEFAULT 0,\
 		`score` INT DEFAULT 0,\
+		`highest_killstreak` INT DEFAULT 0,\
 		`health` FLOAT DEFAULT 150.0,\
 		`pos_x` FLOAT DEFAULT -1401.5,\
 		`pos_y` FLOAT DEFAULT 106.5,\
@@ -286,13 +287,14 @@ public OnPlayerDataLoaded(playerid)
 	cache_get_value_name_int(0, "id", PlayerDatabase[playerid][E_PLAYER_DB_ID]);
 	PlayerDatabase[playerid][E_PLAYER_LOGGED_IN] = true;
 
-	new adminLevel, cash, score;
+	new adminLevel, cash, score, highestKillstreak;
 	new Float:health, Float:x, Float:y, Float:z;
 	new interior, virtualworld;
 
 	cache_get_value_name_int(0, "admin_level", adminLevel);
 	cache_get_value_name_int(0, "cash", cash);
 	cache_get_value_name_int(0, "score", score);
+	cache_get_value_name_int(0, "highest_killstreak", highestKillstreak);
 	cache_get_value_name_float(0, "health", health);
 	cache_get_value_name_float(0, "pos_x", x);
 	cache_get_value_name_float(0, "pos_y", y);
@@ -321,6 +323,7 @@ public OnPlayerDataLoaded(playerid)
 	SetPlayerAdminLevel(playerid, adminLevel);
 	SetPlayerCash(playerid, cash);
 	AddPlayerScore(playerid, score);
+	SetPlayerHighestKillStreak(playerid, highestKillstreak);
 
 	SendClientMessage(playerid, 0xFFFFFFFF, "Successfully logged in! Welcome back.");
 
@@ -403,6 +406,7 @@ SavePlayerAccount(playerid)
 		`admin_level` = %d, \
 		`cash` = %d, \
 		`score` = %d, \
+		`highest_killstreak` = %d, \
 		`health` = %f, \
 		`pos_x` = %f, \
 		`pos_y` = %f, \
@@ -414,6 +418,7 @@ SavePlayerAccount(playerid)
 		GetPlayerAdminLevel(playerid),
 		GetPlayerCash(playerid),
 		GetPlayerServerScore(playerid),
+		GetPlayerHighestKillStreak(playerid),
 		health,
 		x, y, z,
 		interior,

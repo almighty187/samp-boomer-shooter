@@ -355,16 +355,43 @@ CMD:setadmin(playerid, params[])
 	return 1;
 }
 
-CMD:adminlevel(playerid, params[])
+CMD:ahelp(playerid, params[])
 {
-	new level = GetPlayerAdminLevel(playerid),
-		levelName[32],
-		message[128];
+	if (!IsPlayerAdminLevel(playerid, ADMIN_LEVEL_MODERATOR))
+		return SendClientMessage(playerid, COLOR_GREY, "You don't have permission to use this command.");
 
-	GetAdminLevelName(level, levelName);
-	format(message, sizeof message, "Your admin level: %d (%s)", level, levelName);
-	SendClientMessage(playerid, 0xAFAFAFFF, message);
+	new info[1024];
 
+	strcat(info, "{FFFFFF}=== Moderator (Level 1) ===\n");
+	strcat(info, "/heal [playerid] - Heal a player\n");
+	strcat(info, "/goto [playerid] - Teleport to a player\n");
+	strcat(info, "/gethere [playerid] - Bring a player to you\n");
+	strcat(info, "/a [message] - Admin chat\n\n");
+
+	strcat(info, "{FFFFFF}=== Administrator (Level 2) ===\n");
+	strcat(info, "/kick [playerid] [reason] - Kick a player\n");
+	strcat(info, "/freeze [playerid] - Freeze a player\n");
+	strcat(info, "/unfreeze [playerid] - Unfreeze a player\n");
+	strcat(info, "/slap [playerid] [power] - Slap a player\n");
+	strcat(info, "/setint [playerid] [interior] - Set player interior\n");
+	strcat(info, "/setvw [playerid] [virtualworld] - Set player virtual world\n\n");
+
+	strcat(info, "{FFFFFF}=== Senior Admin (Level 3) ===\n");
+	strcat(info, "/ban [playerid] [reason] - Ban a player\n");
+	strcat(info, "/kill [playerid] - Kill a player\n");
+	strcat(info, "/gotoco [x,y,z,interior,vw] - Teleport to coordinates\n\n");
+
+	strcat(info, "{FFFFFF}=== Owner (Level 4) ===\n");
+	strcat(info, "/setadmin [playerid] [level] - Set admin level\n\n");
+
+	new title[] = "Admin Commands";
+	new button[] = "Close";
+	Dialog_Show(playerid, AdminHelp, DIALOG_STYLE_MSGBOX, title, info, button, "");
+	return 1;
+}
+
+Dialog:AdminHelp(playerid, response, listitem, inputtext[])
+{
 	return 1;
 }
 
@@ -381,6 +408,54 @@ CMD:a(playerid, params[])
 
 	format(message, sizeof message, "[Adm Chat] %s: %s", playerName, params);
 	SendMessageToAdmins(0xFF6347FF, message, ADMIN_LEVEL_MODERATOR);
+
+	return 1;
+}
+
+CMD:setint(playerid, params[])
+{
+	if (!IsPlayerAdminLevel(playerid, ADMIN_LEVEL_ADMIN))
+		return SendClientMessage(playerid, COLOR_GREY, "You don't have permission to use this command.");
+
+	new targetid, interior;
+	if (sscanf(params, "ui", targetid, interior))
+		return SendClientMessage(playerid, COLOR_GREY, "Usage: /setint [playerid] [interior]");
+
+	if (!IsPlayerConnected(targetid))
+		return SendClientMessage(playerid, COLOR_GREY, "Invalid player ID.");
+
+	SetPlayerInterior(targetid, interior);
+
+	new adminName[MAX_PLAYER_NAME], targetName[MAX_PLAYER_NAME], message[144];
+	GetPlayerName(playerid, adminName, sizeof adminName);
+	GetPlayerName(targetid, targetName, sizeof targetName);
+
+	format(message, sizeof message, "Admin %s set %s's interior to %d", adminName, targetName, interior);
+	SendClientMessageToAll(COLOR_LIGHTRED, message);
+
+	return 1;
+}
+
+CMD:setvw(playerid, params[])
+{
+	if (!IsPlayerAdminLevel(playerid, ADMIN_LEVEL_ADMIN))
+		return SendClientMessage(playerid, COLOR_GREY, "You don't have permission to use this command.");
+
+	new targetid, virtualworld;
+	if (sscanf(params, "ui", targetid, virtualworld))
+		return SendClientMessage(playerid, COLOR_GREY, "Usage: /setvw [playerid] [virtualworld]");
+
+	if (!IsPlayerConnected(targetid))
+		return SendClientMessage(playerid, COLOR_GREY, "Invalid player ID.");
+
+	SetPlayerVirtualWorld(targetid, virtualworld);
+
+	new adminName[MAX_PLAYER_NAME], targetName[MAX_PLAYER_NAME], message[144];
+	GetPlayerName(playerid, adminName, sizeof adminName);
+	GetPlayerName(targetid, targetName, sizeof targetName);
+
+	format(message, sizeof message, "Admin %s set %s's virtual world to %d", adminName, targetName, virtualworld);
+	SendClientMessageToAll(COLOR_LIGHTRED, message);
 
 	return 1;
 }
