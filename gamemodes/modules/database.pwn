@@ -1,8 +1,5 @@
 #include <YSI_Coding\y_hooks>
 
-#define DIALOG_REGISTER 1000
-#define DIALOG_LOGIN 1001
-
 static MySQL:g_SQL;
 
 static enum E_PLAYER_DATABASE
@@ -15,17 +12,93 @@ static PlayerDatabase[MAX_PLAYERS][E_PLAYER_DATABASE];
 static PlayerWeapons[MAX_PLAYERS][13][2];
 static PlayerInputPassword[MAX_PLAYERS][65];
 
-ConnectDatabase()
-{
-	g_SQL = mysql_connect_file("mysql.ini");
+static g_MySQLHost[64] = "127.0.0.1";
+static g_MySQLUser[64] = "root";
+static g_MySQLPass[64];
+static g_MySQLDB[64] = "quake_boomer";
+static g_MySQLPort = 3306;
 
-	if (g_SQL == MYSQL_INVALID_HANDLE || mysql_errno(g_SQL) != 0)
+LoadMySQLConfig()
+{
+	new File:file = fopen("mysql.ini", io_read);
+
+	if (!file)
 	{
-		printf("[MySQL] Connection failed! Make sure mysql.ini exists and is configured correctly.");
+		printf("[MySQL] ERROR: Could not open mysql.ini for reading");
 		return 0;
 	}
 
-	printf("[MySQL] Connected successfully using mysql.ini");
+	new line[128], key[32], value[96];
+
+	while (fread(file, line))
+	{
+		if (line[0] == '\0' || line[0] == '#' || line[0] == ';' || line[0] == '\r' || line[0] == '\n')
+			continue;
+
+		new pos = strfind(line, "=");
+		if (pos == -1)
+			continue;
+
+		strmid(key, line, 0, pos);
+		strmid(value, line, pos + 1, strlen(line));
+
+		for (new i = 0; i < strlen(key); i++)
+		{
+			if (key[i] == ' ' || key[i] == '\t')
+			{
+				strdel(key, i, i + 1);
+				i--;
+			}
+		}
+
+		for (new i = 0; i < strlen(value); i++)
+		{
+			if (value[i] == ' ' || value[i] == '\t' || value[i] == '\r' || value[i] == '\n')
+			{
+				strdel(value, i, i + 1);
+				i--;
+			}
+		}
+
+		if (!strcmp(key, "host", true))
+			format(g_MySQLHost, sizeof g_MySQLHost, "%s", value);
+		else if (!strcmp(key, "user", true))
+			format(g_MySQLUser, sizeof g_MySQLUser, "%s", value);
+		else if (!strcmp(key, "password", true))
+			format(g_MySQLPass, sizeof g_MySQLPass, "%s", value);
+		else if (!strcmp(key, "database", true))
+			format(g_MySQLDB, sizeof g_MySQLDB, "%s", value);
+		else if (!strcmp(key, "port", true))
+			g_MySQLPort = strval(value);
+	}
+
+	fclose(file);
+	printf("[MySQL] Configuration loaded from mysql.ini");
+	return 1;
+}
+
+ConnectDatabase()
+{
+	if (!LoadMySQLConfig())
+	{
+		printf("[MySQL] Failed to load mysql.ini");
+		return 0;
+	}
+
+	printf("[MySQL] Connecting to %s:%d as %s...", g_MySQLHost, g_MySQLPort, g_MySQLUser);
+
+	new MySQLOpt:options = mysql_init_options();
+	mysql_set_option(options, SERVER_PORT, g_MySQLPort);
+
+	g_SQL = mysql_connect(g_MySQLHost, g_MySQLUser, g_MySQLPass, g_MySQLDB, options);
+
+	if (g_SQL == MYSQL_INVALID_HANDLE || mysql_errno(g_SQL) != 0)
+	{
+		printf("[MySQL] Connection failed! Check if MySQL server is running");
+		return 0;
+	}
+
+	printf("[MySQL] Connected successfully to database '%s'", g_MySQLDB);
 	CreateTables();
 	return 1;
 }
@@ -37,8 +110,11 @@ CreateTables()
 		`username` VARCHAR(24) NOT NULL,\
 		`password` VARCHAR(61) NOT NULL,\
 		`admin_level` INT DEFAULT 0,\
+		`vip_level` INT DEFAULT 0,\
 		`cash` INT DEFAULT 0,\
 		`score` INT DEFAULT 0,\
+		`kills` INT DEFAULT 0,\
+		`deaths` INT DEFAULT 0,\
 		`highest_killstreak` INT DEFAULT 0,\
 		`health` FLOAT DEFAULT 150.0,\
 		`pos_x` FLOAT DEFAULT -1401.5,\
@@ -47,6 +123,7 @@ CreateTables()
 		`interior` INT DEFAULT 1,\
 		`virtualworld` INT DEFAULT 0,\
 		`weapons` VARCHAR(256) DEFAULT '',\
+		`lobby_skin` INT DEFAULT 0,\
 		`last_login` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\
 		PRIMARY KEY (`id`),\
 		UNIQUE KEY `username` (`username`)\
@@ -84,7 +161,7 @@ ShowLoginDialog(playerid)
 		Please enter your password below to login:",
 		playerName);
 
-	ShowPlayerDialog(playerid, DIALOG_LOGIN, DIALOG_STYLE_PASSWORD, "Account Login", dialogString, "Login", "Quit");
+	Dialog_Show(playerid, Login, t_DIALOG_STYLE:DIALOG_STYLE_PASSWORD, "Account Login", dialogString, "Login", "Quit");
 }
 
 ShowRegisterDialog(playerid)
@@ -98,7 +175,7 @@ ShowRegisterDialog(playerid)
 		Please enter a password below to create your account:",
 		playerName);
 
-	ShowPlayerDialog(playerid, DIALOG_REGISTER, DIALOG_STYLE_PASSWORD, "Account Registration", dialogString, "Register", "Quit");
+	Dialog_Show(playerid, Register, t_DIALOG_STYLE:DIALOG_STYLE_PASSWORD, "Account Registration", dialogString, "Register", "Quit");
 }
 
 forward OnAccountCheck(playerid);
@@ -145,6 +222,8 @@ public OnAccountRegistered(playerid)
 	PlayerDatabase[playerid][E_PLAYER_DB_ID] = cache_insert_id();
 	PlayerDatabase[playerid][E_PLAYER_LOGGED_IN] = true;
 
+	SetPlayerLobbySkin(playerid, 0);
+
 	SendClientMessage(playerid, 0x00FF00FF, "Account successfully registered! You are now logged in.");
 
 	TogglePlayerSpectating(playerid, false);
@@ -161,7 +240,7 @@ public OnAccountDataLoaded(playerid)
 
 	if (cache_num_rows() == 0)
 	{
-		ShowPlayerDialog(playerid, DIALOG_LOGIN, DIALOG_STYLE_PASSWORD,
+		Dialog_Show(playerid, Login, t_DIALOG_STYLE:DIALOG_STYLE_PASSWORD,
 			"Account Login",
 			"{FFFFFF}Welcome to {FF0000}QUAKE{FFFFFF}!\n\n\
 			{FF0000}Account not found!{FFFFFF}\n\
@@ -185,7 +264,7 @@ public OnPasswordVerified(playerid, bool:success)
 
 	if (!success)
 	{
-		ShowPlayerDialog(playerid, DIALOG_LOGIN, DIALOG_STYLE_PASSWORD,
+		Dialog_Show(playerid, Login, t_DIALOG_STYLE:DIALOG_STYLE_PASSWORD,
 			"Account Login",
 			"{FFFFFF}Welcome to {FF0000}QUAKE{FFFFFF}!\n\n\
 			{FF0000}Incorrect password!{FFFFFF}\n\
@@ -214,13 +293,16 @@ public OnPlayerDataLoaded(playerid)
 	cache_get_value_name_int(0, "id", PlayerDatabase[playerid][E_PLAYER_DB_ID]);
 	PlayerDatabase[playerid][E_PLAYER_LOGGED_IN] = true;
 
-	new E_ADMIN_LEVEL:adminLevel, cash, score, highestKillstreak;
+	new E_ADMIN_LEVEL:adminLevel, E_VIP_LEVEL:vipLevel, cash, score, kills, deaths, highestKillstreak, lobbySkin;
 	new Float:health, Float:x, Float:y, Float:z;
 	new interior, virtualworld;
 
 	cache_get_value_name_int(0, "admin_level", _:adminLevel);
+	cache_get_value_name_int(0, "vip_level", _:vipLevel);
 	cache_get_value_name_int(0, "cash", cash);
 	cache_get_value_name_int(0, "score", score);
+	cache_get_value_name_int(0, "kills", kills);
+	cache_get_value_name_int(0, "deaths", deaths);
 	cache_get_value_name_int(0, "highest_killstreak", highestKillstreak);
 	cache_get_value_name_float(0, "health", health);
 	cache_get_value_name_float(0, "pos_x", x);
@@ -228,6 +310,7 @@ public OnPlayerDataLoaded(playerid)
 	cache_get_value_name_float(0, "pos_z", z);
 	cache_get_value_name_int(0, "interior", interior);
 	cache_get_value_name_int(0, "virtualworld", virtualworld);
+	cache_get_value_name_int(0, "lobby_skin", lobbySkin);
 
 	new weaponsData[256];
 	cache_get_value_name(0, "weapons", weaponsData, sizeof weaponsData);
@@ -248,9 +331,13 @@ public OnPlayerDataLoaded(playerid)
 	}
 
 	SetPlayerAdminLevel(playerid, adminLevel);
+	SetPlayerVipLevel(playerid, vipLevel);
 	SetPlayerCash(playerid, cash);
 	AddPlayerScore(playerid, score);
+	SetPlayerKills(playerid, kills);
+	SetPlayerDeaths(playerid, deaths);
 	SetPlayerHighestKillStreak(playerid, highestKillstreak);
+	SetPlayerLobbySkin(playerid, lobbySkin);
 
 	SendClientMessage(playerid, 0xFFFFFFFF, "Successfully logged in! Welcome back.");
 
@@ -260,7 +347,7 @@ public OnPlayerDataLoaded(playerid)
 	SetPlayerPos(playerid, x, y, z);
 	SetPlayerInterior(playerid, interior);
 	SetPlayerVirtualWorld(playerid, virtualworld);
-	ServerSetHealth(playerid, health);
+	SetPlayerHealth(playerid, health);
 
 	for (new i = 0; i < 13; i++)
 	{
@@ -306,7 +393,7 @@ SavePlayerAccount(playerid)
 
 	new Float:x, Float:y, Float:z, Float:health;
 	GetPlayerPos(playerid, x, y, z);
-	health = ServerGetPlayerHealth(playerid);
+	GetPlayerHealth(playerid, health);
 
 	new interior = GetPlayerInterior(playerid);
 	new virtualworld = GetPlayerVirtualWorld(playerid);
@@ -317,7 +404,7 @@ SavePlayerAccount(playerid)
 		new t_WEAPON:weaponid, ammo;
 		GetPlayerWeaponData(playerid, t_WEAPON_SLOT:i, weaponid, ammo);
 
-		if (weaponid > WEAPON_FIST && ammo > 0)
+		if (weaponid > t_WEAPON:WEAPON_FIST && ammo > 0)
 		{
 			format(weaponPair, sizeof weaponPair, "%d:%d,", _:weaponid, ammo);
 			strcat(weaponsData, weaponPair);
@@ -331,8 +418,11 @@ SavePlayerAccount(playerid)
 	mysql_format(g_SQL, query, sizeof query,
 		"UPDATE `accounts` SET \
 		`admin_level` = %d, \
+		`vip_level` = %d, \
 		`cash` = %d, \
 		`score` = %d, \
+		`kills` = %d, \
+		`deaths` = %d, \
 		`highest_killstreak` = %d, \
 		`health` = %f, \
 		`pos_x` = %f, \
@@ -340,17 +430,22 @@ SavePlayerAccount(playerid)
 		`pos_z` = %f, \
 		`interior` = %d, \
 		`virtualworld` = %d, \
-		`weapons` = '%e' \
+		`weapons` = '%e', \
+		`lobby_skin` = %d \
 		WHERE `id` = %d",
 		_:GetPlayerAdminLevel(playerid),
+		_:GetPlayerVipLevel(playerid),
 		GetPlayerCash(playerid),
 		GetPlayerServerScore(playerid),
+		GetPlayerKills(playerid),
+		GetPlayerDeaths(playerid),
 		GetPlayerHighestKillStreak(playerid),
 		health,
 		x, y, z,
 		interior,
 		virtualworld,
 		weaponsData,
+		GetPlayerLobbySkin(playerid),
 		PlayerDatabase[playerid][E_PLAYER_DB_ID]
 	);
 
@@ -386,46 +481,41 @@ hook OnPlayerDisconnect(playerid, reason)
 	SavePlayerAccount(playerid);
 }
 
-hook OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
+Dialog:Register(playerid, response, listitem, inputtext[])
 {
-	if (dialogid == DIALOG_REGISTER)
+	if (!response)
+		return Kick(playerid);
+
+	if (strlen(inputtext) < 4 || strlen(inputtext) > 32)
 	{
-		if (!response)
-			return Kick(playerid);
-
-		if (strlen(inputtext) < 4 || strlen(inputtext) > 32)
-		{
-			ShowPlayerDialog(playerid, DIALOG_REGISTER, DIALOG_STYLE_PASSWORD,
-				"Account Registration",
-				"{FFFFFF}Welcome to {FF0000}QUAKE{FFFFFF}!\n\n\
-				{FF0000}Password must be between 4 and 32 characters!{FFFFFF}\n\
-				Please enter a password below to create your account:",
-				"Register", "Quit");
-			return 1;
-		}
-
-		format(PlayerInputPassword[playerid], 65, "%s", inputtext);
-		bcrypt_hash(playerid, "OnPasswordHashed", inputtext, BCRYPT_COST);
+		Dialog_Show(playerid, Register, DIALOG_STYLE_PASSWORD,
+			"Account Registration",
+			"{FFFFFF}Welcome to {FF0000}QUAKE{FFFFFF}!\n\n\
+			{FF0000}Password must be between 4 and 32 characters!{FFFFFF}\n\
+			Please enter a password below to create your account:",
+			"Register", "Quit");
 		return 1;
 	}
 
-	if (dialogid == DIALOG_LOGIN)
-	{
-		if (!response)
-			return Kick(playerid);
+	format(PlayerInputPassword[playerid], 65, "%s", inputtext);
+	bcrypt_hash(playerid, "OnPasswordHashed", inputtext, BCRYPT_COST);
+	return 1;
+}
 
-		format(PlayerInputPassword[playerid], 65, "%s", inputtext);
+Dialog:Login(playerid, response, listitem, inputtext[])
+{
+	if (!response)
+		return Kick(playerid);
 
-		new playerName[MAX_PLAYER_NAME], query[256];
-		GetPlayerName(playerid, playerName, sizeof playerName);
+	format(PlayerInputPassword[playerid], 65, "%s", inputtext);
 
-		mysql_format(g_SQL, query, sizeof query,
-			"SELECT * FROM `accounts` WHERE `username` = '%e' LIMIT 1",
-			playerName);
+	new playerName[MAX_PLAYER_NAME], query[256];
+	GetPlayerName(playerid, playerName, sizeof playerName);
 
-		mysql_tquery(g_SQL, query, "OnAccountDataLoaded", "i", playerid);
-		return 1;
-	}
+	mysql_format(g_SQL, query, sizeof query,
+		"SELECT * FROM `accounts` WHERE `username` = '%e' LIMIT 1",
+		playerName);
 
-	return 0;
+	mysql_tquery(g_SQL, query, "OnAccountDataLoaded", "i", playerid);
+	return 1;
 }

@@ -1,6 +1,6 @@
 #include <YSI_Coding\y_hooks>
 
-static t_WEAPON:g_PlayerCurrentWeapon[MAX_PLAYERS] = {WEAPON_FIST, ...};
+static t_WEAPON:g_PlayerCurrentWeapon[MAX_PLAYERS] = {t_WEAPON:WEAPON_FIST, ...};
 static t_WEAPON:g_PlayerWeaponInventory[MAX_PLAYERS][13];
 
 bool:DoesPlayerHaveWeapon(playerid, t_WEAPON:weaponid)
@@ -37,9 +37,9 @@ ResetPlayerServerWeapons(playerid)
 {
 	for (new i = 0; i < 13; i++)
 	{
-		g_PlayerWeaponInventory[playerid][i] = WEAPON_FIST;
+		g_PlayerWeaponInventory[playerid][i] = t_WEAPON:WEAPON_FIST;
 	}
-	g_PlayerCurrentWeapon[playerid] = WEAPON_FIST;
+	g_PlayerCurrentWeapon[playerid] = t_WEAPON:WEAPON_FIST;
 }
 
 hook OnPlayerUpdate(playerid)

@@ -1,3 +1,5 @@
+#include <YSI_Coding\y_hooks>
+
 #define MAX_POWERUPS 9
 #define POWERUP_RESPAWN_TIME 10000
 
@@ -40,7 +42,15 @@ public RespawnPowerup(powerup)
 	KillTimer(g_Powerups[powerup][E_POWERUP_RESPAWN_TIMER]);
 
 	new powerupModelId = GetPowerupModelId(g_Powerups[powerup][E_POWERUP_TYPE]);
-	g_Powerups[powerup][E_POWERUP_PICKUP] = CreatePickup(powerupModelId, 2, g_PowerupSpawnPoints[powerup][0], g_PowerupSpawnPoints[powerup][1], g_PowerupSpawnPoints[powerup][2]);
+	g_Powerups[powerup][E_POWERUP_PICKUP] = CreateDynamicPickup(
+		powerupModelId,
+		2,  // Type 2 = respawns after pickup
+		g_PowerupSpawnPoints[powerup][0],
+		g_PowerupSpawnPoints[powerup][1],
+		g_PowerupSpawnPoints[powerup][2],
+		-1,  // All worlds
+		1    // Interior 1
+	);
 }
 
 InitializePowerups()
@@ -96,42 +106,52 @@ CreatePowerup(id, E_POWERUP:type)
 	new powerupModelId = GetPowerupModelId(type);
 
 	g_Powerups[id][E_POWERUP_TYPE] = type;
-	g_Powerups[id][E_POWERUP_PICKUP] = CreatePickup(powerupModelId, 2, g_PowerupSpawnPoints[id][0], g_PowerupSpawnPoints[id][1], g_PowerupSpawnPoints[id][2]);
+	g_Powerups[id][E_POWERUP_PICKUP] = CreateDynamicPickup(
+		powerupModelId,
+		2,  // Type 2 = respawns after pickup
+		g_PowerupSpawnPoints[id][0],
+		g_PowerupSpawnPoints[id][1],
+		g_PowerupSpawnPoints[id][2],
+		-1,  // All worlds
+		1    // Interior 1
+	);
 }
 
 OnPickupPowerup(playerid, powerup)
 {
-	DestroyPickup(g_Powerups[powerup][E_POWERUP_PICKUP]);
+	DestroyDynamicPickup(g_Powerups[powerup][E_POWERUP_PICKUP]);
 
 	switch (g_Powerups[powerup][E_POWERUP_TYPE])
 	{
 		case E_POWERUP_PILLS:
 		{
-			ServerSetHealth(playerid, 200);
+			SetPlayerHealth(playerid, 200.0);
 		}
 		case E_POWERUP_SMALL_HP:
 		{
-			ServerGiveHealth(playerid, 10);
+			new Float:health;
+			GetPlayerHealth(playerid, health);
+			SetPlayerHealth(playerid, floatadd(health, 10.0));
 			SendClientMessage(playerid, COLOR_GREY, "You have picked up +10 health.");
 		}
 		case E_POWERUP_SHOTGUN:
 		{
-			GivePlayerServerWeapon(playerid, WEAPON_SHOTGUN, 9999);
+			GivePlayerServerWeapon(playerid, t_WEAPON:WEAPON_SHOTGUN, 9999);
 			SendClientMessage(playerid, COLOR_GREY, "You have picked up a Shotgun.");
 		}
 		case E_POWERUP_MP5:
 		{
-			GivePlayerServerWeapon(playerid, WEAPON_MP5, 9999);
+			GivePlayerServerWeapon(playerid, t_WEAPON:WEAPON_MP5, 9999);
 			SendClientMessage(playerid, COLOR_GREY, "You have picked up a MP5.");
 		}
 		case E_POWERUP_AK:
 		{
-			GivePlayerServerWeapon(playerid, WEAPON_AK47, 9999);
+			GivePlayerServerWeapon(playerid, t_WEAPON:WEAPON_AK47, 9999);
 			SendClientMessage(playerid, COLOR_GREY, "You have picked up a AK-47.");
 		}
 		case E_POWERUP_M4:
 		{
-			GivePlayerServerWeapon(playerid, WEAPON_M4, 9999);
+			GivePlayerServerWeapon(playerid, t_WEAPON:WEAPON_M4, 9999);
 			SendClientMessage(playerid, COLOR_GREY, "You have picked up a M4.");
 		}
 	}
@@ -140,7 +160,7 @@ OnPickupPowerup(playerid, powerup)
 	g_Powerups[powerup][E_POWERUP_RESPAWN_TIMER] = SetTimerEx("RespawnPowerup", POWERUP_RESPAWN_TIME, false, "i", powerup);
 }
 
-hook OnPlayerPickUpPickup(playerid, pickupid)
+public OnPlayerPickUpDynamicPickup(playerid, pickupid)
 {
 	for (new i = 0; i < sizeof g_Powerups; i++)
 	{
@@ -150,4 +170,5 @@ hook OnPlayerPickUpPickup(playerid, pickupid)
 			break;
 		}
 	}
+	return 1;
 }

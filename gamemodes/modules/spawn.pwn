@@ -13,10 +13,13 @@
 #define SKIN_ATTACKER 170
 #define SKIN_DEFENDER 177
 
+#define SELECTION_MENU_LOBBY_SKIN 0
+
 static enum E_PLAYER_SPAWN_DATA
 {
 	E_PLAYER_ARENA,
-	E_PLAYER_TEAM
+	E_PLAYER_TEAM,
+	E_PLAYER_LOBBY_SKIN
 }
 
 static PlayerSpawnData[MAX_PLAYERS][E_PLAYER_SPAWN_DATA];
@@ -59,6 +62,16 @@ GiveRandomWeapon(playerid)
 	GivePlayerServerWeapon(playerid, t_WEAPON:randomWeapon, 9999);
 }
 */
+
+GetPlayerLobbySkin(playerid)
+{
+	return PlayerSpawnData[playerid][E_PLAYER_LOBBY_SKIN];
+}
+
+SetPlayerLobbySkin(playerid, skinid)
+{
+	PlayerSpawnData[playerid][E_PLAYER_LOBBY_SKIN] = skinid;
+}
 
 SetPlayerSkills(playerid)
 {
@@ -134,7 +147,7 @@ hook OnPlayerSpawn(playerid)
 
 	SetPlayerSpawn(playerid);
 
-	ServerSetHealth(playerid, DEFAULT_HEALTH);
+	SetPlayerHealth(playerid, DEFAULT_HEALTH);
 	ResetPlayerWeapons(playerid);
 	ResetPlayerServerWeapons(playerid);
 
@@ -142,22 +155,30 @@ hook OnPlayerSpawn(playerid)
 	{
 		if (team == TEAM_ATTACKERS)
 		{
-			SetPlayerSkin(playerid, SKIN_ATTACKER);
+			if (IsPlayerVipLevel(playerid, VIP_LEVEL_BRONZE))
+				SetPlayerSkin(playerid, PlayerSpawnData[playerid][E_PLAYER_LOBBY_SKIN]);
+			else
+				SetPlayerSkin(playerid, SKIN_ATTACKER);
+
 			SetPlayerColor(playerid, 0xFF0000FF);
 			SetPlayerTeam(playerid, TEAM_ATTACKERS);
 		}
 		else if (team == TEAM_DEFENDERS)
 		{
-			SetPlayerSkin(playerid, SKIN_DEFENDER);
+			if (IsPlayerVipLevel(playerid, VIP_LEVEL_BRONZE))
+				SetPlayerSkin(playerid, PlayerSpawnData[playerid][E_PLAYER_LOBBY_SKIN]);
+			else
+				SetPlayerSkin(playerid, SKIN_DEFENDER);
+
 			SetPlayerColor(playerid, 0x0000FFFF);
 			SetPlayerTeam(playerid, TEAM_DEFENDERS);
 		}
 
-		GivePlayerServerWeapon(playerid, WEAPON_DEAGLE, 9999);
+		GivePlayerServerWeapon(playerid, t_WEAPON:WEAPON_DEAGLE, 9999);
 	}
 	else
 	{
-		SetPlayerSkin(playerid, 0);
+		SetPlayerSkin(playerid, PlayerSpawnData[playerid][E_PLAYER_LOBBY_SKIN]);
 		SetPlayerColor(playerid, 0xFFFFFFFF);
 		SetPlayerTeam(playerid, TEAM_NONE);
 	}
@@ -173,6 +194,7 @@ hook OnPlayerConnect(playerid)
 {
 	PlayerSpawnData[playerid][E_PLAYER_ARENA] = ARENA_NONE;
 	PlayerSpawnData[playerid][E_PLAYER_TEAM] = TEAM_NONE;
+	PlayerSpawnData[playerid][E_PLAYER_LOBBY_SKIN] = 0;
 	SetSpawnInfo(playerid, 1, 285, 0.0, 0.0, 0.0, 0.0, WEAPON_FIST, 0, WEAPON_FIST, 0, WEAPON_FIST, 0);
 	return 1;
 }
@@ -196,7 +218,7 @@ Dialog:ArenaSelect(playerid, response, listitem, inputtext[])
 	new button1[] = "Select";
 	new button2[] = "Back";
 
-	Dialog_Show(playerid, TeamSelect, DIALOG_STYLE_LIST, title, info, button1, button2);
+	Dialog_Show(playerid, TeamSelect, t_DIALOG_STYLE:DIALOG_STYLE_LIST, title, info, button1, button2);
 	return 1;
 }
 
@@ -211,7 +233,7 @@ Dialog:TeamSelect(playerid, response, listitem, inputtext[])
 		new button1[] = "Select";
 		new button2[] = "Cancel";
 
-		Dialog_Show(playerid, ArenaSelect, DIALOG_STYLE_LIST, title, info, button1, button2);
+		Dialog_Show(playerid, ArenaSelect, t_DIALOG_STYLE:DIALOG_STYLE_LIST, title, info, button1, button2);
 		return 1;
 	}
 
@@ -240,7 +262,7 @@ CMD:arenas(playerid, params[])
 	new button1[] = "Select";
 	new button2[] = "Cancel";
 
-	Dialog_Show(playerid, ArenaSelect, DIALOG_STYLE_LIST, title, info, button1, button2);
+	Dialog_Show(playerid, ArenaSelect, t_DIALOG_STYLE:DIALOG_STYLE_LIST, title, info, button1, button2);
 	return 1;
 }
 
@@ -250,5 +272,32 @@ CMD:lobby(playerid, params[])
 	PlayerSpawnData[playerid][E_PLAYER_TEAM] = TEAM_NONE;
 	SendClientMessage(playerid, COLOR_GREY, "You have teleported back to the lobby.");
 	SpawnPlayer(playerid);
+	return 1;
+}
+
+CMD:skin(playerid, params[])
+{
+	new List:skinList = list_new();
+
+	for (new i = 0; i < 312; i++)
+	{
+		AddModelMenuItem(skinList, i, "");
+	}
+
+	ShowModelSelectionMenu(playerid, "Select Lobby Skin", SELECTION_MENU_LOBBY_SKIN, skinList);
+	return 1;
+}
+
+public OnModelSelectionResponse(playerid, extraid, index, modelid, response)
+{
+	if (extraid == SELECTION_MENU_LOBBY_SKIN && response == MODEL_RESPONSE_SELECT)
+	{
+		new message[64];
+		SetPlayerLobbySkin(playerid, modelid);
+		SetPlayerSkin(playerid, modelid);
+		SavePlayerAccount(playerid);
+		format(message, sizeof message, "Lobby skin set to ID %d and saved.", modelid);
+		SendClientMessage(playerid, COLOR_GREY, message);
+	}
 	return 1;
 }
